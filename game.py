@@ -1,16 +1,19 @@
 import pygame
 import random
 import numpy as np
+import networkx as nx
+import matplotlib.pyplot as plt
 
 
-HEIGHT = 561
-WIDTH = 627
-ROWS = 17
-COLS = 19
+HEIGHT = 500
+WIDTH = 500
+ROWS = 20
+COLS = 20
 SQSIZE = WIDTH // ROWS
 BLACK = 0, 0, 0
 GREEN = 124, 252, 0
 RED = 255, 160, 122
+WHITE = 255, 255, 255
 
 pygame.init()
 surface = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -55,8 +58,10 @@ class Apple:
         self.generate()
 
     def generate(self):
-        self.x = random.randrange(0, ROWS)
-        self.y = random.randrange(0, COLS)
+
+        
+        self.x = random.randrange(1, ROWS - 1)
+        self.y = random.randrange(1, COLS - 1)
         self.pos = (self.y, self.x)
 
     def draw(self):
@@ -70,7 +75,7 @@ class Apple:
 
             for bloque in snake.body[1:]:
                 if self.pos == bloque:
-                    self.geterate()
+                    self.generate()
 
             return True
 
@@ -80,16 +85,34 @@ class Board:
         self.squares = np.zeros((ROWS, COLS))
         self.empty_squares = self.squares
 
-
 class Game:
     def __init__(self):
         self.snake = Snake()
         self.board = Board()
         self.apple = Apple()
         self.score = 0
+        self.draw_edges()
+        self.graph = nx.Graph()
         self.draw_apple()
         self.draw_snake()
-        self.draw_edges()
+        
+
+    def grid_to_graph(self):
+        graph = nx.Graph()
+        for row in range(self.board.squares.shape[0]):
+            for col in range(self.board.squares.shape[1]):
+                if self.board.squares[row, col] != 3:  # Ignore the edges of the self.board.squares
+                    graph.add_node((row, col))
+                    if row > 0 and self.board.squares[row - 1, col] != 3:
+                        graph.add_edge((row, col), (row - 1, col))
+                    if row < self.board.squares.shape[0] - 1 and self.board.squares[row + 1, col] != 3:
+                        graph.add_edge((row, col), (row + 1, col))
+                    if col > 0 and self.board.squares[row, col - 1] != 3:
+                        graph.add_edge((row, col), (row, col - 1))
+                    if col < self.board.squares.shape[1] - 1 and self.board.squares[row, col + 1] != 3:
+                        graph.add_edge((row, col), (row, col + 1))
+        return graph
+
 
     def draw_apple(self):
         self.board.squares[self.apple.x][self.apple.y] = 2
@@ -108,15 +131,23 @@ class Game:
     def draw_edges(self):
         for row in range(ROWS):
             self.board.squares[row][0] = 3
-            self.board.squares[row][18] = 3
+            self.board.squares[row][COLS-1] = 3
+            pygame.draw.rect(surface, WHITE, (row * SQSIZE,
+                             0 * SQSIZE, SQSIZE, SQSIZE))
+            pygame.draw.rect(surface, WHITE, (row * SQSIZE,
+                             WIDTH - SQSIZE, SQSIZE, SQSIZE))
+            
         for col in range(COLS):
             self.board.squares[0][col] = 3
-            self.board.squares[16][col] = 3
+            self.board.squares[ROWS-1][col] = 3
+            pygame.draw.rect(surface, WHITE, (0 * SQSIZE,
+                             col * SQSIZE, SQSIZE, SQSIZE))
+            pygame.draw.rect(surface, WHITE, (HEIGHT - SQSIZE,
+                             col * SQSIZE, SQSIZE, SQSIZE))
 
     def game_over(self):
         row, col = self.snake.head
-        if self.board.squares[row][col+1] == 3:
-            return True
+        if self.board.squares[row][col] == 3: return True
 
         for bloque in self.snake.body[:-1]:
             if self.snake.head == bloque:
@@ -131,7 +162,7 @@ def main():
     fps = pygame.time.Clock()
 
     while True:
-        fps.tick(10)
+        fps.tick(5)
         snake = game.snake
         apple = game.apple
         for event in pygame.event.get():
@@ -154,14 +185,17 @@ def main():
         game.draw_snake()
         snake.draw()
         apple.draw()
+        game.draw_edges()
+        game.graph = game.grid_to_graph()
+        print(game.board.squares)
+        
         if apple.collision(game.snake):
             game.increaseScore()
             print('score: ', game.score)
 
         pygame.display.update()
-
+        nx.astar_path_length
         if game.game_over():
             quit()
-
 
 main()
