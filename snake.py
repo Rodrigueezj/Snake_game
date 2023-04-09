@@ -10,6 +10,8 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from webdriver_manager.chrome import ChromeDriverManager
+from PIL import Image
+from io import BytesIO
 
 init()
 
@@ -77,26 +79,26 @@ def get_path(food1, snake1):
 def get_head():
     # Capture screenshot of entire browser window
     screenshot_png = driver.get_screenshot_as_png()
-    # Convert PNG data to NumPy array
-    screenshot_array = np.frombuffer(screenshot_png, dtype=np.uint8)
-    screenshot_img = cv2.imdecode(screenshot_array, cv2.IMREAD_COLOR)
+    # Convert PNG data to Pillow Image object
+    screenshot_img = Image.open(BytesIO(screenshot_png))
     # Get location and dimensions of canvas element
     canvas_location = canvas.location
     canvas_size = canvas.size
     # Crop screenshot to just the canvas element
-    canvas_img = screenshot_img[canvas_location['y']:canvas_location['y']+canvas_size['height'],
-                                canvas_location['x']:canvas_location['x']+canvas_size['width']]
-    hsv = cv2.cvtColor(canvas_img, cv2.COLOR_BGR2HSV)
+    canvas_img = screenshot_img.crop((canvas_location['x'], canvas_location['y'],
+                                       canvas_location['x'] + canvas_size['width'],
+                                       canvas_location['y'] + canvas_size['height']))
+    hsv = canvas_img.convert('HSV')
 
-    lower_white = np.array([0, 0, 200])
-    upper_white = np.array([255, 30, 255])
-    white_mask = cv2.inRange(hsv, lower_white, upper_white)
+    lower_white = (0, 0, 200)
+    upper_white = (255, 30, 255)
+    white_mask = hsv.point(lambda x: 255 if (x >= lower_white and x <= upper_white) else 0, '1')
 
-    contours, hierarchy = cv2.findContours(white_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours = white_mask.find_contours()
     eye_centers = []
     for cnt in contours:
-        x,y,w,h = cv2.boundingRect(cnt)
-        eye_center = (int(x + w/2), int(y + h/2))
+        x, y, _, _ = cnt.bbox
+        eye_center = (int(x + cnt.width / 2), int(y + cnt.height / 2))
         eye_centers.append(eye_center)
     eye1_center = eye_centers[0]
     eye2_center = eye_centers[1]
