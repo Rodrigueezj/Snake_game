@@ -21,13 +21,117 @@ class SnakeBoard:
     def printBoard(self):
         print(self.board)
 
-    def updateHead(self, coords):
+    def updateHead(self, canvas_img):
+        hsv_img = cv2.cvtColor(np.array(canvas_img), cv2.COLOR_RGB2HSV)
+
+        # Definimos los rangos de color para el objeto que queremos detectar (en este caso, blanco)
+        lower_white = np.array([0, 0, 200])
+        upper_white = np.array([255, 30, 255])
+
+        # Creamos una máscara con los píxeles dentro del rango de color especificado
+        mask = cv2.inRange(hsv_img, lower_white, upper_white)
+
+        # Encontramos los contornos en la máscara de la imagen
+        contours, _ = cv2.findContours(
+            mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Dibujamos rectángulos y etiquetas alrededor de los objetos detectados
+        draw = ImageDraw.Draw(canvas_img)
+
+        for contour in contours:
+            x_head, y_head, w_head, h_head = cv2.boundingRect(contour)
+            time.sleep(.1)
+
+            draw.rectangle((x_head, y_head, x_head+w_head, y_head +
+                            h_head), outline=(0, 255, 0), width=2)
+            draw.text((x_head, y_head), 'Head', fill=(0, 0, 255))
+
+        # Imprimimos las coordenadas de cada objeto detectado
+        print(
+            f'Head Coordinates: ({int((x_head-28) // 32)}, {int((y_head-25) // 32)})')
+
+        # Devolvemos la última coordenada encontrada
+        canvas_img.save("canvas_screenshot_head.png")
+        coords = (int((x_head-28) // 32), int((y_head-25) // 32))
         self.board[coords[0]][coords[1]] = 1
         self.head = coords
 
-    def updateApple(self, coords):
+    def updateApple(self, canvas_img):
+        hsv_img = cv2.cvtColor(np.array(canvas_img), cv2.COLOR_RGB2HSV)
+
+        # Definimos los rangos de color para el objeto que queremos detectar (en este caso, rojo)
+        lower_red = np.array([0, 50, 50])
+        upper_red = np.array([10, 255, 255])
+
+        # Creamos una máscara con los píxeles dentro del rango de color especificado
+        mask = cv2.inRange(hsv_img, lower_red, upper_red)
+
+        # Encontramos los contornos en la máscara de la imagen
+        contours, _ = cv2.findContours(
+            mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Dibujamos rectángulos y etiquetas alrededor de los objetos detectados
+        draw = ImageDraw.Draw(canvas_img)
+
+        for contour in contours:
+            x, y, w, h = cv2.boundingRect(contour)
+            time.sleep(.1)
+
+            if (len(contours) > 1):
+                if (self.head == (x - 1, y) or self.head == (x, y + 1) or self.head == (x + 1, y) or self.head == (x, y - 1)):
+                    print('tongue')
+                else:
+                    x_apple = x
+                    y_apple = y
+            else:
+                x_apple = x
+                y_apple = y
+
+            draw.rectangle((x_apple, y_apple, x_apple+w, y_apple+h),
+                          outline=(0, 255, 0), width=2)
+            draw.text((x_apple, y_apple), 'Apple', fill=(0, 0, 255))
+
+          # Imprimimos las coordenadas de cada objeto detectado
+        print(
+            f'Apple Coordinates: ({int((x_apple-28) // 32)}, {int((y_apple-25) // 32)})')
+
+        # Devolvemos la última coordenada encontrada
+        canvas_img.save("canvas_screenshot_apple.png")
+        coords = (int((x_apple-28) // 32), int((y_apple-25) // 32))
         self.board[coords[0]][coords[1]] = 2
         self.head = coords
+
+    def updateBody(self, canvas_img):
+        hsv_img = cv2.cvtColor(np.array(canvas_img), cv2.COLOR_RGB2HSV)
+
+        # Definimos los rangos de color para el objeto que queremos detectar (en este caso, azul)
+        lower_blue = np.array([100, 50, 50])
+        upper_blue = np.array([130, 255, 255])
+
+        # Creamos una máscara con los píxeles dentro del rango de color especificado
+        mask = cv2.inRange(hsv_img, lower_blue, upper_blue)
+
+        # Encontramos los contornos en la máscara de la imagen
+        contours, _ = cv2.findContours(
+            mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Dibujamos rectángulos y etiquetas alrededor de los objetos detectados
+        draw = ImageDraw.Draw(canvas_img)
+
+        for contour in contours:
+            x_body, y_body, w, h = cv2.boundingRect(contour)
+            time.sleep(.1)
+
+            if (x_body, y_body) != self.head:
+                coords = (int((x_body-28) // 32), int((y_body-25) // 32))
+                self.board[coords[0]][coords[1]] = 3
+
+                draw.rectangle((x_body, y_body, x_body+w, y_body+h), outline=(0, 255, 0), width=2)
+                draw.text((x_body, y_body), 'Body', fill=(0, 0, 255))
+
+        # Devolvemos la última coordenada encontrada
+        canvas_img.save("canvas_screenshot_body.png")
+        
 
 
 # Esta funcion ejecuta chrome con el link de snake arcade e inicia el juego.
@@ -72,91 +176,12 @@ def getCanvaData(driver):
     return canvas_img, widthRow, heightRow
 
 
-def get_head(canvas_img):
-    hsv_img = cv2.cvtColor(np.array(canvas_img), cv2.COLOR_RGB2HSV)
-
-    # Definimos los rangos de color para el objeto que queremos detectar (en este caso, rojo)
-    lower_red = np.array([0, 0, 200])
-    upper_red = np.array([255, 30, 255])
-
-    # Creamos una máscara con los píxeles dentro del rango de color especificado
-    mask = cv2.inRange(hsv_img, lower_red, upper_red)
-
-    # Encontramos los contornos en la máscara de la imagen
-    contours, _ = cv2.findContours(
-        mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Dibujamos rectángulos y etiquetas alrededor de los objetos detectados
-    draw = ImageDraw.Draw(canvas_img)
-
-    for contour in contours:
-        x_head, y_head, w_head, h_head = cv2.boundingRect(contour)
-        time.sleep(.1)
-
-        draw.rectangle((x_head, y_head, x_head+w_head, y_head +
-                       h_head), outline=(0, 255, 0), width=2)
-        draw.text((x_head, y_head), 'Head', fill=(0, 0, 255))
-
-    # Imprimimos las coordenadas de cada objeto detectado
-    print(
-        f'Head Coordinates: ({int((x_head-28) // 32)}, {int((y_head-25) // 32)})')
-
-    # Devolvemos la última coordenada encontrada
-    canvas_img.save("canvas_screenshot_head.png")
-    return int((x_head-28) // 32), int((y_head-25) // 32)
-
-
-def get_apple(canvas_img, head_coords):
-    hsv_img = cv2.cvtColor(np.array(canvas_img), cv2.COLOR_RGB2HSV)
-
-    # Definimos los rangos de color para el objeto que queremos detectar (en este caso, rojo)
-    lower_red = np.array([0, 50, 50])
-    upper_red = np.array([10, 255, 255])
-
-    # Creamos una máscara con los píxeles dentro del rango de color especificado
-    mask = cv2.inRange(hsv_img, lower_red, upper_red)
-
-    # Encontramos los contornos en la máscara de la imagen
-    contours, _ = cv2.findContours(
-        mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Dibujamos rectángulos y etiquetas alrededor de los objetos detectados
-    draw = ImageDraw.Draw(canvas_img)
-
-    for contour in contours:
-        x, y, w, h = cv2.boundingRect(contour)
-        time.sleep(.1)
-
-        if (len(contours) > 1):
-            if (head_coords == (x - 1, y) or head_coords == (x, y + 1) or head_coords == (x + 1, y) or head_coords == (x, y - 1)):
-                print('tongue')
-            else:
-                x_apple = x
-                y_apple = y
-        else:
-            x_apple = x
-            y_apple = y
-
-        draw.rectangle((x_apple, y_apple, x_apple+w, y_apple+h),
-                       outline=(0, 255, 0), width=2)
-        draw.text((x_apple, y_apple), 'Apple', fill=(0, 0, 255))
-
-      # Imprimimos las coordenadas de cada objeto detectado
-    print(
-        f'Apple Coordinates: ({int((x_apple-28) // 32)}, {int((y_apple-25) // 32)})')
-
-    # Devolvemos la última coordenada encontrada
-    canvas_img.save("canvas_screenshot_apple.png")
-    return int((x_apple-28) // 32), int((y_apple-25) // 32)
-
-
 driver = initChromeLink()
 canvas_img, widthRow, heightRow = getCanvaData(driver)
-head_coords = get_head(canvas_img)
-apple_coords = get_apple(canvas_img, head_coords)
 
 snakeBodar = SnakeBoard()
 snakeBodar.cleanBoard()
-snakeBodar.updateHead(head_coords)
-snakeBodar.updateApple(apple_coords)
+snakeBodar.updateHead(canvas_img)
+snakeBodar.updateApple(canvas_img)
+snakeBodar.updateBody(canvas_img)
 snakeBodar.printBoard()
